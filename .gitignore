@@ -27,3 +27,4 @@ Thumbs.db
 
 # 特定文件
 chromedriver.exe
+/.venv

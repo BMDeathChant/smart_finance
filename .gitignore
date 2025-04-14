@@ -1,1 +1,29 @@
+# 环境变量文件
 .env
+
+# 分发目录
+/dist
+
+# 可执行文件
+*.exe
+*.spec
+
+# 构建目录
+build/
+
+# 输出目录
+output/
+
+# Python编译文件
+*.pyc
+__pycache__/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 日志文件
+*.log
+
+# 特定文件
+chromedriver.exe

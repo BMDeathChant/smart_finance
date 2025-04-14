@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分析结果</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        .log-section {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 5px;
+        }
+        .log-container {
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 10px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .log-entry {
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+            font-family: monospace;
+        }
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+        .log-time {
+            color: #666;
+            margin-right: 10px;
+        }
+        .log-level {
+            font-weight: bold;
+            margin-right: 10px;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+        .log-level.INFO {
+            color: #2ecc71;
+        }
+        .log-level.WARNING {
+            color: #f39c12;
+        }
+        .log-level.ERROR {
+            color: #e74c3c;
+        }
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .result-container {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .status {
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        .success {
+            color: #27ae60;
+        }
+        .error {
+            color: #e74c3c;
+        }
+        .download-section {
+            margin-top: 20px;
+        }
+        .download-link {
+            display: inline-block;
+            background-color: #3498db;
+            color: white;
+            text-decoration: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        .download-link:hover {
+            background-color: #2980b9;
+        }
+        .chart-container {
+            width: 100%;
+            height: 400px;
+            margin: 30px 0;
+        }
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+    <h1>财务数据分析结果</h1>
+    <div class="result-container">
+        <div class="status {% if error %}error{% else %}success{% endif %}">
+            {% if error %}
+                分析出错: {{ error }}
+            {% else %}
+                分析完成!
+            {% endif %}
+        </div>
+        
+        
+        {% if not error %}
+        <div class="visualizations">
+            <h2>可视化结果</h2>
+            {% for sheet_name, chart_data in visualizations.items() %}
+                <div class="chart-container" id="chart-{{ loop.index }}"></div>
+            {% endfor %}
+        </div>
+        
+        <div class="download-section">
+            <h3>下载结果:</h3>
+            <a href="/download/excel" class="download-link">下载Excel文件</a>
+            <a href="/download/analysis" class="download-link">下载分析报告</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <a href="/" class="back-link">返回首页</a>
+
+    {% if not error %}
+    <script id="chart-data" type="application/json">
+        {{ visualizations|tojson }}
+    </script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                // 从DOM获取图表数据
+                var chartData = JSON.parse(
+                    document.getElementById('chart-data').textContent
+                );
+                
+                // 渲染所有图表
+                Object.keys(chartData).forEach(function(sheetName, index) {
+                    var chartId = 'chart-' + (index + 1);
+                    var chartDom = document.getElementById(chartId);
+                    if (chartDom) {
+                        try {
+                            var chart = echarts.init(chartDom);
+                            chart.setOption(chartData[sheetName]);
+                            
+                            window.addEventListener('resize', function() {
+                                chart.resize();
+                            });
+                        } catch (e) {
+                            console.error('渲染图表' + chartId + '出错:', e);
+                            chartDom.innerHTML = '<p>图表渲染失败: ' + e.message + '</p>';
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error('加载图表数据出错:', e);
+            }
+        });
+    </script>
+    {% endif %}
+</body>
+</html>

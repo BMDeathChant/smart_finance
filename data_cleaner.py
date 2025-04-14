@@ -49,7 +49,7 @@ def handle_missing_values(df: pd.DataFrame, strategy: str = 'mean',
     df = df.copy()
     # 将"--"替换为0
     df = df.replace('--', 0)
-    
+    df = df.replace(r"(\d{2})-(\d{2})-(\d{2})", r"\1/\2/\3", regex=True)
     if strategy == 'drop':
         df = df.dropna()
     elif strategy == 'fill':

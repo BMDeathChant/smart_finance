@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>财务数据分析工具</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        form {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .example {
+            font-size: 14px;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>财务数据分析工具</h1>
+    <form id="analyzeForm">
+        <div class="form-group">
+            <label for="url">财务数据URL:</label>
+            <input type="text" id="url" name="url" required 
+                   placeholder="请输入财务数据URL">
+            <p class="example">
+                示例: https://emweb.securities.eastmoney.com/PC_HKF10/pages/home/index.html?code=03333&type=web&color=w#/newfinancialanalysis
+            </p>
+        </div>
+        <button type="submit">开始分析</button>
+        <div id="loading" style="display:none; margin-top:20px;">
+            <p>正在分析中，请稍候...</p>
+            <progress></progress>
+        </div>
+    </form>
+
+    <script>
+        document.getElementById('analyzeForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const form = e.target;
+            const loading = document.getElementById('loading');
+            const url = form.url.value;
+            
+            loading.style.display = 'block';
+            form.querySelector('button').disabled = true;
+            
+            fetch('/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `url=${encodeURIComponent(url)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                const taskId = data.task_id;
+                checkStatus(taskId);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                loading.innerHTML = '<p style="color:red;">提交失败，请重试</p>';
+            });
+        });
+
+        function checkStatus(taskId) {
+            fetch(`/check_status/${taskId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'processing') {
+                    setTimeout(() => checkStatus(taskId), 1000);
+                } else if (data.status === 'completed') {
+                    window.location.href = `/results?images=${encodeURIComponent(JSON.stringify(data.images))}`;
+                } else if (data.status === 'error') {
+                    window.location.href = `/results?error=${encodeURIComponent(data.error)}`;
+                }
+            });
+        }
+    </script>
+</body>
+</html>

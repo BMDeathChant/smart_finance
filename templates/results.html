@@ -106,11 +106,12 @@
 <body>
     <h1>财务数据分析结果</h1>
     <div class="result-container">
+		
         <div class="status {% if error %}error{% else %}success{% endif %}">
             {% if error %}
-                分析出错: {{ error }}
+                爬取出错: {{ error }}
             {% else %}
-                分析完成!
+                爬取完成!
             {% endif %}
         </div>
         
@@ -127,9 +128,40 @@
             <h3>下载结果:</h3>
             <a href="/download/excel" class="download-link">下载Excel文件</a>
             <a href="/download/analysis" class="download-link">下载分析报告</a>
+            <a href="/du_point_analysis?excel_path={{ excel_path }}" class="download-link" style="background-color: #9b59b6;">杜邦分析</a>
         </div>
+		
         {% endif %}
     </div>
+	<div class="log-section">
+    	<h2>实时日志</h2>
+		<div id="log-box" class="log-container"></div>
+	</div>
+
+	<script>
+		function fetchLogs() {
+			fetch('/logs')
+				.then(res => res.json())
+				.then(logs => {
+					const logBox = document.getElementById('log-box');
+					logBox.innerHTML = '';
+					logs.forEach(log => {
+						const entry = document.createElement('div');
+						entry.className = 'log-entry';
+						entry.innerHTML = `
+							<span class="log-time">${log.time}</span>
+							<span class="log-level ${log.level}">${log.level}</span>
+							<span class="log-message">${log.message}</span>
+						`;
+						logBox.appendChild(entry);
+					});
+					
+				});
+		}
+
+		setInterval(fetchLogs, 200);  // 每0.2秒拉取日志
+		fetchLogs();  // 页面加载时立即调用一次
+	</script>
 
     <a href="/" class="back-link">返回首页</a>
 

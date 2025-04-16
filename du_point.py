@@ -21,7 +21,8 @@ cached_years = []
 PRECOMPUTED_COLUMNS = {
     "net_profit_margin": "净利率(%)",
     "asset_turnover": "总资产周转率(次)",
-    "equity_multiplier": "权益乘数"
+    "equity_multiplier": "权益乘数",
+    "return_on_total_assets":"总资产收益率(%)"
 }
 
 RAW_COLUMNS = {
@@ -142,6 +143,7 @@ def load_data(contents, filename):
                 df["净利润率"] = df[PRECOMPUTED_COLUMNS["net_profit_margin"]] / 100
                 df["资产周转率"] = df[PRECOMPUTED_COLUMNS["asset_turnover"]]
                 df["权益乘数"] = df[PRECOMPUTED_COLUMNS["equity_multiplier"]]
+                df["总资产收益率"] = df[PRECOMPUTED_COLUMNS["return_on_total_assets"]]
 
                 cached_df = df
                 cached_years = df.index.unique().tolist()
@@ -168,6 +170,8 @@ def load_data(contents, filename):
             df[index_column] = pd.to_datetime(df[index_column], format="%y/%m/%d", errors='coerce')
             df = df[df[index_column].dt.year >= 2000]
             df["年份"] = df[index_column].dt.year.astype(str)
+            # 处理可能的重复年份 - 保留第一条记录
+            df = df.drop_duplicates(subset="年份", keep="first")
             df.set_index("年份", inplace=True)
 
             for key, aliases in RAW_COLUMNS.items():

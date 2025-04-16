@@ -32,6 +32,7 @@ class DataCleaner:
             # 默认清洗流程
             df = handle_missing_values(df)
             df = remove_duplicates(df)
+            df = drop_non_numeric_columns(df)
             return df
 
 def handle_missing_values(df: pd.DataFrame, strategy: str = 'mean', 
@@ -181,3 +182,26 @@ def clean_data_pipeline(df: pd.DataFrame,
         elif step == 'normalize_data':
             df = normalize_data(df, **params)
     return df
+def drop_non_numeric_columns(df: pd.DataFrame) -> pd.DataFrame:
+    #删除完全非数值的列，但保留类似日期的列
+    import re
+    df = df.copy()
+    non_numeric_cols = []
+    date_pattern = re.compile(r"\d{2}/\d{2}/\d{2}")
+    
+    for col in df.columns:
+        try:
+            # 如果大部分最高值看起来像日期，则保留该列
+            sample = df[col].dropna().astype(str).head(10).tolist()
+            date_like_count = sum(bool(date_pattern.match(val)) for val in sample)
+            if date_like_count >= len(sample) // 2:
+                continue  
+
+            converted = pd.to_numeric(df[col], errors='coerce')
+            if converted.notna().sum() == 0:
+                non_numeric_cols.append(col)
+        except Exception:
+            non_numeric_cols.append(col)
+    if non_numeric_cols:
+        print(f"以下列非数值类型，已移除: {non_numeric_cols}")
+    return df.drop(columns=non_numeric_cols)

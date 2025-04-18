@@ -101,36 +101,115 @@
             text-align: center;
             margin-top: 30px;
         }
+        /* 卡片图样式 */
+        .key-metrics-container {
+            display: flex;
+            flex-wrap: wrap; /* 允许换行 */
+            gap: 15px; /* 卡片间距 */
+            margin-bottom: 25px; /* 与下方内容的间距 */
+            padding-bottom: 20px; /* 容器底部内边距 */
+            border-bottom: 1px solid #eee; /* 分隔线 */
+        }
+        .metric-card {
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 15px 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            text-align: center;
+            flex: 1; /* 基础宽度，允许伸缩 */
+            min-width: 150px; /* 最小宽度 */
+            max-width: 200px; /* 最大宽度，避免过宽 */
+        }
+        .metric-card .name {
+            font-size: 0.9em;
+            color: #555;
+            margin-bottom: 8px;
+            white-space: nowrap; /* 防止名称换行 */
+            overflow: hidden;
+            text-overflow: ellipsis; /* 超出部分显示省略号 */
+            display: block; /* 确保 ellipsis 生效 */
+        }
+        .metric-card .value {
+            font-size: 1.6em;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+            display: block; /* 确保数值单独一行 */
+        }
+         .metric-card .period {
+            font-size: 0.8em;
+            color: #888;
+            display: block; /* 确保周期单独一行 */
+        }
     </style>
 </head>
 <body>
-    <h1>财务数据分析结果</h1>
+    <h1>财务数据分析工具</h1>
     <div class="result-container">
-		
+
         <div class="status {% if error %}error{% else %}success{% endif %}">
             {% if error %}
-                爬取出错: {{ error }}
+                分析出错: {{ error }} {# 统一错误提示信息 #}
+            {% elif key_metrics or available_years %} {# 修改条件，即使没有指标但有年份也显示完成 #}
+                分析完成!
             {% else %}
-                爬取完成!
+                分析完成，但未提取到关键指标或可用年份。
             {% endif %}
         </div>
-        
-        
+
+        {% if not error and available_years %} {# 只有在有可用年份时才显示筛选器和卡片 #}
+        <!-- 年份/时间点筛选器 -->
+        <form id="year-selector-form" style="margin-bottom: 15px; text-align: right;">
+             <input type="hidden" name="task_id" value="{{ task_id }}"> {# 保持 task_id #}
+             <label for="year-select">选择数据周期:</label>
+             <select id="year-select" name="year" onchange="this.form.submit()">
+                 {% for year in available_years %}
+                     <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>
+                         {{ year }}
+                     </option>
+                 {% endfor %}
+             </select>
+             <noscript><button type="submit">加载</button></noscript>
+        </form>
+
+        <!-- 关键指标卡片区域 -->
+        <h2>关键财务指标 ({{ selected_year }})</h2> {# 显示选定的数据周期 #}
+         {% if key_metrics %}
+            <div class="key-metrics-container">
+                {% for metric in key_metrics %}
+                <div class="metric-card">
+                    <span class="name" title="{{ metric.name }}">{{ metric.name }}</span> {# 添加 title 属性显示完整名称 #}
+                    <span class="value">{{ metric.value }}</span>
+                    {# <span class="period">{{ metric.period }}</span> #} {# 周期统一显示在标题处 #}
+                </div>
+                {% endfor %}
+            </div>
+         {% else %}
+            <p>未能加载选定周期 ({{ selected_year }}) 的关键指标数据。</p>
+         {% endif %}
+        {% elif not error %}
+             {# 如果没有错误但也没有可用年份，可以显示提示 #}
+             <p>未能从“主要财务指标”表中提取到可用的数据周期。</p>
+        {% endif %}
+
+
         {% if not error %}
-        <div class="visualizations">
+        {# 保留原有的可视化和下载区域 (注释掉可视化部分) #}
+        {# <div class="visualizations">
             <h2>可视化结果</h2>
             {% for sheet_name, chart_data in visualizations.items() %}
                 <div class="chart-container" id="chart-{{ loop.index }}"></div>
             {% endfor %}
-        </div>
-        
+        </div> #}
+
         <div class="download-section">
-            <h3>下载结果:</h3>
+            <h3>操作与下载:</h3> {# 修改标题 #}
             <a href="/download/excel" class="download-link">下载Excel文件</a>
-            <a href="/download/analysis" class="download-link">下载分析报告</a>
             <a href="/du_point_analysis?excel_path={{ excel_path }}" class="download-link" style="background-color: #9b59b6;">杜邦分析</a>
+            <a href="/ai_analysis" class="download-link" style="background-color: #2ecc71;" target="_blank">查看 AI 分析报告</a> {# 添加 target="_blank" 在新标签页打开 #}
         </div>
-		
+
         {% endif %}
     </div>
 	<div class="log-section">
@@ -139,6 +218,13 @@
 	</div>
 
 	<script>
+        // 确保年份选择表单提交时使用 GET 方法
+        const yearForm = document.getElementById('year-selector-form');
+        if (yearForm) {
+            yearForm.method = 'get';
+            yearForm.action = '{{ url_for("show_results") }}'; // 提交到当前页面
+        }
+
 		function fetchLogs() {
 			fetch('/logs')
 				.then(res => res.json())
@@ -155,18 +241,21 @@
 						`;
 						logBox.appendChild(entry);
 					});
-					
+                    // 滚动到底部
+                    logBox.scrollTop = logBox.scrollHeight;
 				});
 		}
 
-		setInterval(fetchLogs, 200);  // 每0.2秒拉取日志
+		setInterval(fetchLogs, 2000);  // 每 2 秒拉取日志 (减少频率)
 		fetchLogs();  // 页面加载时立即调用一次
 	</script>
 
-    <a href="/" class="back-link">返回首页</a>
+    {# 更新链接以指向重置路由，并传递task_id #}
+    <a href="{{ url_for('reset_and_home', task_id=task_id) if task_id else url_for('index') }}" class="back-link">返回首页并重置</a>
 
     {% if not error %}
-    <script id="chart-data" type="application/json">
+    {# 注释掉图表渲染部分，因为现在没有传递 visualizations 数据 #}
+    {# <script id="chart-data" type="application/json">
         {{ visualizations|tojson }}
     </script>
     
@@ -200,7 +289,26 @@
                 console.error('加载图表数据出错:', e);
             }
         });
-    </script>
+    </script> #}
     {% endif %}
+
+    <script>
+        // 调整卡片图中长数字的字体大小
+        document.addEventListener('DOMContentLoaded', function() {
+            const valueElements = document.querySelectorAll('.metric-card .value');
+            const thresholdLong = 10; // 稍小字体的阈值
+            const thresholdVeryLong = 14; // 更小字体的阈值
+
+            valueElements.forEach(el => {
+                const textLength = el.textContent.trim().length;
+                if (textLength > thresholdVeryLong) {
+                    el.style.fontSize = '1.1em'; // 缩小
+                } else if (textLength > thresholdLong) {
+                    el.style.fontSize = '1.3em'; // 略微缩小
+                }
+                // 否则，使用默认的CSS字体大小（1.6em）
+            });
+        });
+    </script>
 </body>
 </html>

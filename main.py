@@ -18,13 +18,8 @@ import os
 from dotenv import load_dotenv
 from io import StringIO
 import sys
+import markdown # 导入 markdown 库
 
-# 配置日志
-"""logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)"""
 
 
 from io import StringIO
@@ -303,37 +298,94 @@ def show_results():
 
     if result['status'] in ['completed', 'transpose_completed']:
         excel_path = result.get('excel_path')
+        selected_year = request.args.get('year') # 获取选择的年份/时间点
 
-        # 读取Excel表格为HTML
+        key_metrics = []
+        available_years = []
         excel_tables = {}
+        metrics_df = None # 用于存储主要财务指标的DataFrame
+
         try:
             xls = pd.ExcelFile(excel_path)
             for sheet in xls.sheet_names:
                 df = pd.read_excel(xls, sheet_name=sheet)
                 html_table = df.to_html(classes='table table-bordered table-striped', index=True)
                 excel_tables[sheet] = html_table
+
+                # 存储 "主要财务指标" DataFrame 并提取可用年份
+                if sheet == "主要财务指标" and not df.empty:
+                    metrics_df = df
+                    if len(df.columns) > 1:
+                        # 可用年份/时间点是除了第一列（指标名称）之外的所有列
+                        available_years = df.columns[1:].tolist()
+                        # 如果没有选择年份，或选择的年份无效，则默认选择最新的（最后一列）
+                        if not selected_year or selected_year not in available_years:
+                            selected_year = available_years[-1] if available_years else None
+                    else:
+                         logger.warning("主要财务指标 sheet 没有数据列。")
+
+
+            # 如果成功读取了指标表并且选定了年份，则提取该年份的数据
+            if metrics_df is not None and selected_year and selected_year in available_years:
+                metric_column_name = metrics_df.columns[0] # 指标名称列名
+                num_metrics_to_show = min(5, len(metrics_df)) # 最多显示5个
+
+                for i in range(num_metrics_to_show):
+                    metric_name = metrics_df.iloc[i][metric_column_name]
+                    metric_value = metrics_df.iloc[i][selected_year] # 使用选定年份的列
+
+                    # 格式化数值
+                    try:
+                        formatted_value = f"{float(metric_value):,.2f}" if pd.notna(metric_value) else "N/A"
+                    except (ValueError, TypeError):
+                        formatted_value = str(metric_value) if pd.notna(metric_value) else "N/A"
+
+                    key_metrics.append({
+                        'name': metric_name,
+                        'value': formatted_value
+                        # 'period' 不再单独附加，因为年份已选定
+                    })
+            elif metrics_df is not None and not available_years:
+                 logger.warning("主要财务指标 sheet 存在，但未能提取到任何年份/时间点列。")
+
+
         except Exception as e:
+            logger.error(f"读取 Excel 或提取指标时出错: {e}")
             return render_template('results.html',
-                                    error=f"Excel读取失败: {e}",
+                                    error=f"Excel读取或指标提取失败: {e}",
                                     excel_path=excel_path,
                                     excel_tables={},
                                     visualizations={},
+                                    key_metrics=[],
+                                    available_years=[],
+                                    selected_year=None,
+                                    task_id=task_id, # 传递 task_id
                                     logs=logs
                                )
 
+        # 成功时传递所有需要的数据
         return render_template('results.html',
                                excel_path=excel_path,
                                excel_tables=excel_tables,
                                visualizations={},
+                               key_metrics=key_metrics,
+                               available_years=available_years, # 传递可用年份列表
+                               selected_year=selected_year,   # 传递选定年份
+                               task_id=task_id, # 传递 task_id 以便重新加载时保留
                                error=None,
                                logs=logs
                                )
     else:
+        # 在其他错误情况下也传递空数据
         return render_template('results.html',
                                error=result.get('error'),
                                excel_path=None,
                                excel_tables={},
                                visualizations={},
+                               key_metrics=[],
+                               available_years=[],
+                               selected_year=None,
+                               task_id=task_id, # 传递 task_id
                                logs=logs
                                )
 
@@ -392,10 +444,76 @@ def du_point_analysis():
         </html>
         """
     except Exception as e:
-        self.logger.error(f"杜邦分析启动失败: {e}")
+        logger.error(f"杜邦分析启动失败: {e}")
         return render_template('results.html',
                                error=f"杜邦分析启动失败: {e}",
                                excel_path=excel_path)
+
+import glob # 导入 glob 模块
+
+@app.route('/ai_analysis')
+def show_ai_analysis():
+    """显示AI分析结果页面，允许通过下拉列表选择单个 .md 文件"""
+    output_dir = app.config['UPLOAD_FOLDER']
+    all_md_files_paths = glob.glob(os.path.join(output_dir, '*.md'))
+    # 获取文件名列表并按字母排序
+    all_md_files = sorted([os.path.basename(f) for f in all_md_files_paths])
+    
+    # 获取请求的文件名，如果没有则使用排序后的第一个文件
+    selected_file = request.args.get('file', all_md_files[0] if all_md_files else None)
+    
+    html_analysis_result = ""
+    error_message = None
+
+    if not all_md_files:
+        error_message = "在 output 目录下未找到任何 AI 分析报告文件 (.md)。"
+        logger.warning(error_message)
+    elif selected_file not in all_md_files:
+        error_message = f"请求的文件 '{selected_file}' 不存在。"
+        logger.warning(error_message)
+        # 如果请求的文件无效，则默认显示第一个文件
+        selected_file = all_md_files[0] if all_md_files else None # 确保在文件列表为空时不会出错
+    
+    # 如果有选定的文件（无论是默认还是请求的），则读取并显示
+    if selected_file:
+        selected_file_path = os.path.join(output_dir, selected_file)
+        try:
+            with open(selected_file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                # 将 Markdown 转换为 HTML
+            html_analysis_result = markdown.markdown(content, extensions=['extra', 'sane_lists'])
+            logger.info(f"正在显示 AI 分析文件: {selected_file}")
+        except Exception as e:
+            error_message = f"读取文件 {selected_file} 时出错: {e}"
+            logger.error(error_message)
+            html_analysis_result = f"<p>错误: {error_message}</p>"
+
+    return render_template('ai_analysis.html',
+                           analysis_result=html_analysis_result,
+                           md_files=all_md_files, # 使用排序后的文件列表
+                           selected_file=selected_file,
+                           error_message=error_message)
+
+@app.route('/reset_and_home')
+def reset_and_home():
+    """清除指定任务的状态和结果，并重定向到首页"""
+    task_id = request.args.get('task_id')
+    if task_id:
+        # 从字典中移除任务条目，使用 pop 并提供默认值以避免 KeyErrors
+        analysis_status.pop(task_id, None)
+        analysis_results.pop(task_id, None)
+        logger.info(f"任务 {task_id} 已被重置。")
+    else:
+        logger.warning("尝试重置任务，但未提供 task_id。")
+    
+    # 清空日志缓冲区，以便新任务从干净的日志开始
+    log_collector.log_buffer.truncate(0)
+    log_collector.log_buffer.seek(0)
+    logger.info("日志缓冲区已清空。")
+
+    return redirect(url_for('index'))
+
+
 log_collector = LogCollector()
 logger = log_collector.get_logger()
 main_app = MainApp(log_collector)

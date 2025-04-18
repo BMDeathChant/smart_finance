@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 财务分析报告</title>
+    <style>
+        body { font-family: 'Microsoft YaHei', sans-serif; max-width: 900px; margin: 20px auto; padding: 20px; line-height: 1.8; background-color: #f9f9f9; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        h1, h2, h3, h4, h5, h6 { color: #2c3e50; margin-top: 1em; margin-bottom: 0.5em; }
+        h1 { text-align: center; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-bottom: 30px; }
+        .analysis-content { background: white; padding: 25px; border-radius: 5px; white-space: normal; font-size: 16px; color: #333; border: 1px solid #eee; min-height: 100px; overflow-y: auto; }
+        .analysis-content { display: block; max-height: 600px; overflow-y: auto; padding: 25px; background: white; border: 1px solid #eee; border-radius: 5px; padding-bottom: 2em; }
+        .analysis-content li:empty {display: none;}/* 隐藏没有任何文字或只有空白的列表项 */
+        .analysis-content ul, .analysis-content ol { margin: 1em 0; padding-left: 1.5em; }
+        .analysis-content li { margin-bottom: 0.5em; }
+        .analysis-content table { width: 100%; border-collapse: collapse; margin: 1em 0; }
+        .analysis-content th, .analysis-content td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .analysis-content thead { background-color: #f5f5f5; }
+        .analysis-content tr:nth-child(even) { background-color: #fafafa; }
+        .cursor { display: inline-block; background-color: #333; margin-left: 2px; animation: blink 1s step-end infinite; width: 8px; height: 1.2em; vertical-align: text-bottom; }
+        @keyframes blink { 0%,100%{background-color:transparent;}50%{background-color:#333;} }
+        .back-link { display: block; text-align: center; margin-top: 30px; text-decoration: none; color: #3498db; font-weight: bold; }
+        .back-link:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <h1>AI 财务分析报告</h1>
+
+    {% if error_message %}
+        <p style="color: red; text-align: center;">错误: {{ error_message }}</p>
+    {% endif %}
+
+    {% if md_files %}
+    <form id="file-selector-form" style="text-align: center; margin-bottom: 20px;">
+        <label for="file-select">选择报告文件:</label>
+        <select id="file-select" name="file" onchange="this.form.submit()">
+            {% for md_file in md_files %}
+                {# Display text without .md extension, value remains the full filename #}
+                <option value="{{ md_file }}" {% if md_file == selected_file %}selected{% endif %}>
+                    {{ md_file[:-3] if md_file.endswith('.md') else md_file }}
+                </option>
+            {% endfor %}
+        </select>
+        <noscript><button type="submit">加载</button></noscript>
+    </form>
+    {% endif %}
+
+    <div id="original-html-content" style="display:none;">
+        {% if analysis_result %}{{ analysis_result|safe }}{% else %}<p>未能加载分析结果。</p>{% endif %}
+    </div>
+    <div id="typewriter-output" class="analysis-content">
+        <div id="typed-text"></div><span class="cursor">&nbsp;</span>
+    </div>
+    <a href="/" class="back-link">返回首页</a>
+    <script>
+        // 确保表单提交时使用 GET 方法，以便更改 URL 参数
+        document.getElementById('file-selector-form').method = 'get';
+        document.getElementById('file-selector-form').action = '{{ url_for("show_ai_analysis") }}';
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const raw = document.getElementById('original-html-content').innerHTML;
+            const cleaned = raw.replace(/>\s+</g, '><').trim();
+            // 先将<table>...</table>作为整体段落，再拆分其他HTML标签
+            const tableSegments = cleaned.split(/(<table[\s\S]*?<\/table>)/i).filter(Boolean);
+            const parts = [];
+            tableSegments.forEach(seg => {
+                if (/^<table/i.test(seg)) {
+                    parts.push(seg);
+                } else {
+                    seg.split(/(<[^>]+>)/g).filter(Boolean).forEach(s => parts.push(s));
+                }
+            });
+            const output = document.getElementById('typed-text');
+            const cursor = document.querySelector('.cursor');
+            let idxPart = 0, idxChar = 0;
+            const speed = 10;
+            function typeNext() {
+                if (idxPart >= parts.length) { cursor.style.display = 'none'; return; }
+                const segment = parts[idxPart];
+                const container = document.querySelector('.analysis-content');
+                container.scrollTop = container.scrollHeight;
+                if (/^<table/i.test(segment)) {
+                    // 完整输出表格
+                    output.innerHTML += segment;
+                    idxPart++; idxChar = 0;
+                    setTimeout(typeNext, speed);
+                } else if (segment.startsWith('<') && segment.endsWith('>')) {
+                    // HTML标签插入
+                    output.innerHTML += segment;
+                    idxPart++; idxChar = 0;
+                    setTimeout(typeNext, speed);
+                } else {
+                    // 文本逐字输出
+                    if (idxChar < segment.length) {
+                        output.innerHTML += segment.charAt(idxChar++);
+                        setTimeout(typeNext, speed);
+                    } else {
+                        idxPart++; idxChar = 0;
+                        setTimeout(typeNext, speed);
+                    }
+                }
+                
+            }
+            output.innerHTML = '';
+            typeNext();
+        });
+    </script>
+</body>
+</html>

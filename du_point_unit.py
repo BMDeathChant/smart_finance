@@ -103,7 +103,6 @@ def create_app(excel_path=None):
             cached_df = merged
             cached_years = merged.index.unique().tolist()
             data_loaded = True
-            #return app, cached_df, cached_years
         except Exception as e:
             print(f"❌ 加载 Excel 异常: {e}")
 
@@ -157,21 +156,8 @@ def create_app(excel_path=None):
         html.Div(id='main-container', children=[
             html.Div("正在加载数据...", style={'fontSize': '18px', 'textAlign': 'center', 'marginTop': '50px'})
         ]),
-        #dcc.Interval(id='interval-component', interval=1000, n_intervals=0)
     ])
 
-    # 定时器回调：数据加载完后强制触发布局刷新
-    """@app.callback(
-        Output('init-trigger', 'data'),
-        Input('interval-component', 'n_intervals'),
-        State('init-trigger', 'data')
-    )
-    def force_update(n, current_data):
-        if not data_loaded:
-            print("⏳ 数据尚未加载完成，继续等待...")
-            return current_data
-        print("✅ 数据已加载，强制更新布局")
-        return {'timestamp': pd.Timestamp.now().value}"""
 
     print(">>> create_app 完成")
     print(">>> layout 设置状态:", app.layout is not None)
@@ -202,34 +188,63 @@ def create_app(excel_path=None):
             from pyecharts.charts import Tree
             from pyecharts import options as opts
 
+            # 定义颜色和线宽
+            # 定义颜色、线宽和节点样式
+            color_level1 = "#5CACEE"  # 亮蓝色
+            color_level2 = "#FF8C00"  # 橙色
+            color_level3 = "#90EE90"  # 亮绿色
+            color_leaf = "#B0C4DE"   # 浅钢蓝色 (叶子节点)
+            width_level1 = 2
+            width_level2 = 1.5
+            width_level3 = 1
+            border_color = "#FFFFFF" # 节点边框颜色
+            border_width = 1        # 节点边框宽度
+
+            # 定义节点样式
+            item_style_level1 = {"color": color_level1, "borderColor": border_color, "borderWidth": border_width}
+            item_style_level2 = {"color": color_level2, "borderColor": border_color, "borderWidth": border_width}
+            item_style_level3 = {"color": color_level3, "borderColor": border_color, "borderWidth": border_width}
+            item_style_leaf = {"color": color_leaf, "borderColor": border_color, "borderWidth": border_width}
+
+
             data = [
                 {
                     "name": f"净资产收益率: {roe:.2%}",
+                    "lineStyle": {"color": color_level1, "width": width_level1},
+                    "itemStyle": item_style_level1,
                     "children": [
                         {
                             "name": f"总资产收益率: {roa:.2%}",
+                            "lineStyle": {"color": color_level2, "width": width_level2},
+                            "itemStyle": item_style_level2,
                             "children": [
                                 {
                                     "name": f"净利润率: {net_profit_margin:.2%}",
+                                    "lineStyle": {"color": color_level3, "width": width_level3},
+                                    "itemStyle": item_style_level3,
                                     "children": [
-                                        {"name": f"净利润: {row['net_profit']:.2f}"},
-                                        {"name": f"营业收入: {row['revenue']:.2f}"}
+                                        {"name": f"净利润: {row['net_profit']:.2f}", "itemStyle": item_style_leaf},
+                                        {"name": f"营业收入: {row['revenue']:.2f}", "itemStyle": item_style_leaf}
                                     ]
                                 },
                                 {
                                     "name": f"资产周转率: {asset_turnover:.2f}",
+                                    "lineStyle": {"color": color_level3, "width": width_level3},
+                                    "itemStyle": item_style_level3,
                                     "children": [
-                                        {"name": f"营业收入: {row['revenue']:.2f}"},
-                                        {"name": f"总资产: {row['total_assets']:.2f}"}
+                                        {"name": f"营业收入: {row['revenue']:.2f}", "itemStyle": item_style_leaf},
+                                        {"name": f"总资产: {row['total_assets']:.2f}", "itemStyle": item_style_leaf}
                                     ]
                                 }
                             ]
                         },
                         {
                             "name": f"权益乘数: {equity_multiplier:.2f}",
+                            "lineStyle": {"color": color_level2, "width": width_level2},
+                            "itemStyle": item_style_level2,
                             "children": [
-                                {"name": f"总资产: {row['total_assets']:.2f}"},
-                                {"name": f"股东权益: {row['equity']:.2f}"}
+                                {"name": f"总资产: {row['total_assets']:.2f}", "itemStyle": item_style_leaf},
+                                {"name": f"股东权益: {row['equity']:.2f}", "itemStyle": item_style_leaf}
                             ]
                         }
                     ]
@@ -242,8 +257,8 @@ def create_app(excel_path=None):
                     series_name="杜邦分解树",
                     data=data,
                     orient="LR",
-                    symbol="roundRect",
-                    symbol_size=24,
+                    symbol="circle",  # 改为圆形节点
+                    symbol_size=20, # 调整节点大小
                     initial_tree_depth=-1,
                     label_opts=opts.LabelOpts(
                         position="left",

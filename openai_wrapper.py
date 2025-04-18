@@ -20,6 +20,23 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+# Markdown 输出规范指南
+MARKDOWN_GUIDELINES = """
+从现在开始，输出的 Markdown 必须满足以下要求：
+
+1. **标题**：使用 `#` 到 `######`，前后各空一行。
+2. **子标题编号**：  
+   - 每当出现二级标题 `## X. 标题` 时，其下一级标题请使用 `### X.1 子标题`、`### X.2 子标题` 等格式，X 与二级标题的编号保持一致，数字从 1 开始递增。  
+3. **有序列表**：每级都用 `1. `、`2. ` …；嵌套时，子项目前缩进 **2 个空格**，并在父级项目和子列表之间留一空行。  
+4. **无序列表**：用 `- `（中划线后跟空格），在列表项前后都留一空行；嵌套时，同样缩进 **2 个空格**。  
+   - **注意**：`-` 与内容之间**必须**有一个空格，否则容易被当成普通段落或导致断行错位。
+5. **段落**：每个段落前后空一行，不要直接粘在列表或标题后。
+6. **分隔线**：用三条短横 `---`，前后空行。不要用 HTML `<hr>`。
+7. **避免内嵌原始 HTML**：一律用 Markdown 语法。
+8. **表格**：用标准的管道表格语法，表头与分隔行前后各空行。
+9. **代码块**：不允许输出代码块
+请严格遵守以上规则生成最终报告，保证缩进和空行正确。
+"""
 
 @dataclass
 class AnalysisResult:
@@ -73,7 +90,7 @@ class DataAnalyzer:
             raise ValueError("输入DataFrame不能为空")
             
         # 生成系统提示
-        system_prompt = self._get_system_prompt(task)
+        system_prompt = self._get_system_prompt(task) + "\n\n" + MARKDOWN_GUIDELINES
         
         # 准备数据样本
         sample = df.head(3).to_markdown()

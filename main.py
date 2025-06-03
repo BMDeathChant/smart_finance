@@ -67,7 +67,7 @@ class LogCollector:
 
 
 # 创建Flask应用
-app = Flask(__name__)
+app = Flask(__name__, static_folder='templates')
 app.config['UPLOAD_FOLDER'] = 'output'
 
 class MainApp:

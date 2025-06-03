@@ -117,13 +117,13 @@ class DataAnalyzer:
     def _get_system_prompt(self, task: str) -> str:
         """获取系统提示模板"""
         prompts = {
-            "standard": "你是一个资深财务数据分析师，请专业地分析财务数据",
+            "standard": "你是一位资深的大数据审计师，请从大数据审计的角度，深入分析提供的资产负债表、利润表、现金流量表以及主要财务指标，识别财务风险，并给出具体的整改意见。",
             "trend": "你擅长发现财务数据趋势和模式",
             "anomaly": "你擅长检测财务数据异常和离群值",
-            "balance_sheet": "你是财务专家，请分析资产负债表的关键指标",
-            "income_statement": "你是财务专家，请分析利润表的盈利能力和经营效率", 
-            "cash_flow": "你是财务专家，请分析现金流量表的资金流动情况",
-            "financial_metrics": "你是财务分析专家，请深入分析主要财务指标"
+            "balance_sheet": "你是资深的大数据审计师，请分析资产负债表的关键指标",
+            "income_statement": "你是资深的大数据审计师，请分析利润表的盈利能力和经营效率", 
+            "cash_flow": "你是资深的大数据审计师，请分析现金流量表的资金流动情况",
+            "financial_metrics": "你是资深的大数据审计师，请深入分析主要财务指标"
         }
         return prompts.get(task, prompts["standard"])
         
@@ -161,6 +161,7 @@ class DataAnalyzer:
                 3. 毛利率、营业利润率和净利润率
                 4. 市盈率(PE)和市净率(PB)估值指标
                 5. 关键指标的行业对比和变化原因
+                6. 结合杜邦分析法进行分解分析
             """
         }
         return prompts.get(task, prompts["standard"])

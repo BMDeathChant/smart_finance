@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
     <title>AI 财务分析报告</title>
     <style>
         body { font-family: 'Microsoft YaHei', sans-serif; max-width: 900px; margin: 20px auto; padding: 20px; line-height: 1.8; background-color: #f9f9f9; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
@@ -24,6 +25,18 @@
     </style>
 </head>
 <body>
+	<div style="text-align:center; margin-bottom:20px;">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="DeepSeek Logo" style="height:50px;">
+		<div style="margin-top:10px;">
+        <lottie-player 
+            src="{{ url_for('static', filename='Infinity@1x-0.8s-200px-200px.json') }}" 
+            background="transparent"
+            speed="1"
+            style="width: 150px; height: 150px; margin: 0 auto;"
+            loop autoplay>
+        </lottie-player>
+    </div>
+    </div>
     <h1>AI 财务分析报告</h1>
 
     {% if error_message %}
